@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Memory Task</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0f; --surface:#13131a; --surface2:#1a1a24; --border:#252535;
+    --text:#ddddf0; --muted:#6060a0; --accent:#8b72ff;
+    --green:#4ecb8d; --red:#e05555; --gold:#f0c060; --white:#ffffff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow-x:hidden;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;
+    min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+    align-items:center;padding:24px 16px 48px;}
+
+  .screen{display:none;width:100%;max-width:540px;flex-direction:column;gap:20px;animation:fadeUp .4s ease both;}
+  .screen.active{display:flex;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+  .chip{display:inline-block;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;
+    color:var(--muted);border:1px solid var(--border);padding:5px 13px;border-radius:100px;}
+  h1{font-family:'Fraunces',serif;font-size:clamp(28px,7vw,40px);font-weight:300;line-height:1.15;color:var(--white);}
+  h2{font-family:'Fraunces',serif;font-size:clamp(22px,5.5vw,30px);font-weight:300;color:var(--white);}
+  p{font-size:clamp(12px,3vw,14px);line-height:1.8;color:var(--muted);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;}
+  .btn{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:1px;text-transform:uppercase;
+    padding:17px 28px;border-radius:10px;border:none;cursor:pointer;touch-action:manipulation;
+    user-select:none;transition:transform .12s;}
+  .btn:active{transform:scale(.96);}
+  .btn-primary{background:var(--text);color:var(--bg);font-weight:500;width:100%;padding:19px;font-size:13px;}
+
+  /* Global timer bar */
+  .gtimer-wrap{width:100%;display:flex;flex-direction:column;gap:6px;}
+  .gtimer-meta{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+  .gtimer-val{color:var(--gold);font-weight:500;transition:color .3s;}
+  .gtimer-val.urgent{color:var(--red);animation:urgPulse 1s infinite;}
+  @keyframes urgPulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .gtimer-bg{width:100%;height:5px;background:var(--surface2);border-radius:100px;overflow:hidden;}
+  .gtimer-fill{height:100%;background:var(--gold);border-radius:100px;transition:width .9s linear,background .5s;}
+  .gtimer-fill.urgent{background:var(--red);}
+
+  /* Memorise screen */
+  #memorise-screen{align-items:center;text-align:center;gap:18px;}
+  .cycle-badge{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  .cycle-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1.2s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+  .word-stage{width:100%;min-height:clamp(160px,42vw,220px);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;background:var(--surface);
+    border:1px solid var(--border);border-radius:20px;position:relative;overflow:hidden;}
+  .word-stage::before{content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 0%,rgba(139,114,255,.08) 0%,transparent 70%);pointer-events:none;}
+
+  .fixation{font-family:'Fraunces',serif;font-size:clamp(36px,10vw,52px);font-weight:300;color:var(--muted);animation:fixPop .15s ease;}
+  @keyframes fixPop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+  .word-display{font-family:'Fraunces',serif;font-size:clamp(28px,8vw,44px);font-weight:300;
+    color:var(--white);letter-spacing:2px;animation:wPop .15s ease;}
+  @keyframes wPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+  .word-number{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+
+  .dot-row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .3s,transform .3s;}
+  .dot.done{background:var(--green);transform:scale(1.2);}
+  .dot.current{background:var(--white);transform:scale(1.4);box-shadow:0 0 8px rgba(255,255,255,.4);}
+
+  /* Recall screen */
+  #recall-screen{align-items:stretch;gap:14px;}
+
+  /* Sequence slots */
+  .seq-wrap{display:flex;align-items:center;gap:10px;padding:14px 16px;
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;}
+  .seq-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);flex-shrink:0;}
+  .seq-slots{display:flex;gap:5px;flex-wrap:wrap;flex:1;}
+  .seq-slot{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:500;border:1.5px solid var(--border);background:var(--surface2);
+    color:var(--muted);transition:all .2s;flex-shrink:0;}
+  .seq-slot.filled{background:rgba(78,203,141,.15);border-color:var(--green);color:var(--green);}
+  .seq-slot.active{background:rgba(139,114,255,.15);border-color:var(--accent);color:var(--accent);animation:aPulse 1s infinite;}
+  .seq-slot.wrong{background:rgba(224,85,85,.15);border-color:var(--red);color:var(--red);animation:sSlot .3s ease;}
+  @keyframes aPulse{0%,100%{box-shadow:0 0 0 0 rgba(139,114,255,.4)}50%{box-shadow:0 0 0 4px rgba(139,114,255,0)}}
+  @keyframes sSlot{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+
+  .which-prompt{text-align:center;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+  .which-prompt span{color:var(--accent);}
+
+  /* Per-selection countdown */
+  .sel-cd-wrap{display:flex;align-items:center;justify-content:center;gap:10px;}
+  .cd-svg{transform:rotate(-90deg);}
+  .cd-bg{fill:none;stroke:var(--border);stroke-width:3;}
+  .cd-fill{fill:none;stroke:var(--gold);stroke-width:3;stroke-linecap:round;
+    stroke-dasharray:88;stroke-dashoffset:0;transition:stroke-dashoffset .1s linear,stroke .2s;}
+  .cd-num{position:absolute;font-family:'Fraunces',serif;font-size:14px;font-weight:300;color:var(--gold);}
+  .cd-container{position:relative;display:flex;align-items:center;justify-content:center;}
+  .cd-label{font-size:11px;color:var(--muted);letter-spacing:1px;}
+
+  /* Word grid */
+  .word-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .word-option{padding:15px 12px;background:var(--surface);border:1.5px solid var(--border);
+    border-radius:12px;font-family:'Fraunces',serif;font-size:clamp(15px,4vw,19px);font-weight:300;
+    color:var(--text);cursor:pointer;text-align:center;touch-action:manipulation;user-select:none;
+    transition:border-color .15s,background .15s,transform .1s;letter-spacing:1px;}
+  .word-option:active{transform:scale(.96);}
+  .word-option.correct{border-color:var(--green);background:rgba(78,203,141,.12);color:var(--green);pointer-events:none;}
+  .word-option.wrong{border-color:var(--red);background:rgba(224,85,85,.12);color:var(--red);pointer-events:none;animation:shk .3s ease;}
+  .word-option.timeout{border-color:var(--gold);background:rgba(240,192,96,.08);pointer-events:none;}
+  @keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  .feedback-bar{min-height:36px;padding:10px 16px;border-radius:10px;font-size:12px;letter-spacing:1px;
+    text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .3s;}
+  .feedback-bar.correct{background:rgba(78,203,141,.1);color:var(--green);border:1px solid rgba(78,203,141,.25);}
+  .feedback-bar.wrong{background:rgba(224,85,85,.1);color:var(--red);border:1px solid rgba(224,85,85,.25);}
+  .feedback-bar.timeout{background:rgba(240,192,96,.1);color:var(--gold);border:1px solid rgba(240,192,96,.25);}
+  .feedback-bar.empty{opacity:0;}
+
+  /* Time's up */
+  #timesup-screen{align-items:center;text-align:center;gap:22px;}
+  .timesup-icon{font-size:64px;animation:wob .5s ease;}
+  @keyframes wob{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+
+  /* Complete */
+  #complete-screen{align-items:center;text-align:center;gap:22px;}
+  .trophy{font-size:64px;animation:bnc .6s ease;}
+  @keyframes bnc{0%,100%{transform:translateY(0)}40%{transform:translateY(-16px)}}
+  .complete-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;}
+  .stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px;}
+  .stat-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .stat-value{font-family:'Fraunces',serif;font-size:clamp(24px,7vw,32px);font-weight:300;color:var(--white);}
+  .stat-unit{font-size:11px;color:var(--muted);}
+  .all-found{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .found-chip{font-size:11px;letter-spacing:1px;padding:5px 12px;border-radius:100px;
+    background:rgba(78,203,141,.12);border:1px solid rgba(78,203,141,.3);color:var(--green);
+    animation:pop .2s ease;}
+  @keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro-screen" class="screen active">
+  <div><div class="chip">Experiment #2 — Memory Task</div></div>
+  <h1>Word<br>Memory<br><em style="font-style:italic;color:var(--muted)">Challenge</em></h1>
+  <div class="card">
+    <p>You'll see <strong style="color:var(--text)">10 words</strong> appear one at a time. Each word is only visible for a moment — pay close attention.</p>
+    <br>
+    <p>After all words are shown, you'll pick them out <strong style="color:var(--text)">in the exact order they appeared</strong> from a list of 20 words.</p>
+    <br>
+    <p>If you pick the wrong word or take too long, the words will cycle again. You have <strong style="color:var(--gold)">5 minutes</strong> to recall all 10 in the correct order!</p>
+  </div>
+  <button class="btn btn-primary" onclick="startTask()">I'm Ready →</button>
+</div>
+
+<!-- MEMORISE -->
+<div id="memorise-screen" class="screen">
+  <div class="gtimer-wrap">
+    <div class="gtimer-meta"><span>Time Remaining</span><span class="gtimer-val" id="gt1">5:00</span></div>
+    <div class="gtimer-bg"><div class="gtimer-fill" id="gb1" style="width:100%"></div></div>
+  </div>
+  <div class="cycle-badge"><div class="cycle-dot"></div><span id="cycle-count">Cycle 1</span></div>
+  <div class="word-stage">
+    <div id="stage-content"><div class="fixation">+</div></div>
+    <div class="word-number" id="word-number" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%)"></div>
+  </div>
+  <div class="dot-row" id="dot-row"></div>
+  <p style="text-align:center;font-size:11px;">Each word appears for 1 second — watch carefully</p>
+</div>
+
+<!-- RECALL -->
+<div id="recall-screen" class="screen">
+  <div class="gtimer-wrap">
+    <div class="gtimer-meta"><span>Time Remaining</span><span class="gtimer-val" id="gt2">5:00</span></div>
+    <div class="gtimer-bg"><div class="gtimer-fill" id="gb2" style="width:100%"></div></div>
+  </div>
+
+  <div class="seq-wrap">
+    <span class="seq-label">Order</span>
+    <div class="seq-slots" id="seq-slots"></div>
+  </div>
+
+  <div class="which-prompt">Select word <span id="asking-index">1</span> of 10</div>
+
+  <div class="sel-cd-wrap">
+    <div class="cd-container">
+      <svg class="cd-svg" width="36" height="36" viewBox="0 0 36 36">
+        <circle class="cd-bg" cx="18" cy="18" r="14"/>
+        <circle class="cd-fill" id="cd-ring" cx="18" cy="18" r="14"/>
+      </svg>
+      <span class="cd-num" id="cd-num">10</span>
+    </div>
+    <span class="cd-label">seconds to select</span>
+  </div>
+
+  <div class="word-grid" id="word-grid"></div>
+  <div class="feedback-bar empty" id="feedback-bar"></div>
+</div>
+
+<!-- TIME'S UP -->
+<div id="timesup-screen" class="screen">
+  <div class="timesup-icon">⏰</div>
+  <h2>Time's Up!</h2>
+  <p>The 5 minutes have ended. You correctly recalled <strong id="timesup-count" style="color:var(--text)">0</strong> out of 10 words in order.</p>
+  <div class="card"><p>Your researcher will let you know what comes next.</p></div>
+</div>
+
+<!-- COMPLETE -->
+<div id="complete-screen" class="screen">
+  <div class="trophy">🏆</div>
+  <h2>All 10 Words Found!</h2>
+  <p>You recalled every word in the correct order.</p>
+  <div class="complete-stats">
+    <div class="stat-box"><div class="stat-label">Cycles Taken</div><div class="stat-value" id="final-cycles">—</div></div>
+    <div class="stat-box"><div class="stat-label">Time Used</div><div class="stat-value" id="final-time">—</div></div>
+  </div>
+  <div class="all-found" id="all-found-chips"></div>
+  <p style="font-size:11px;text-align:center;">Your researcher will let you know what comes next.</p>
+</div>
+
+<script>
+  const ORIGINAL = ['Solace','Tether','Wane','Brisk','Hollow','Mirth','Vault','Smolder','Lull','Dusk'];
+
+  const TRUE_DECOYS = [
+    'Solstice','Waver','Brine','Hallow','Mist','Simmer','Hull','Dune',
+    'Sullen','Tepid','Wrest','Blisk','Vaulted','Smudge','Lush','Crest',
+    'Frond','Torque','Glint','Wisp','Sallow','Tinder','Wane','Brisk'
+  ].filter(d => !ORIGINAL.includes(d));
+
+  const TOTAL_SEC = 300;
+
+  let cycleCount  = 0;
+  let wordIndex   = 0;
+  let recallIndex = 0;        // which position in sequence we're asking (0-based)
+  let correctCount = 0;       // how many have been correctly recalled so far
+  let cycleTO     = null;
+  let selCDInt    = null;
+  let globalInt   = null;
+  let secLeft     = TOTAL_SEC;
+  let taskStart   = null;
+  let ended       = false;
+  let selCD       = 10;
+
+  function shuffle(arr){
+    const a=[...arr];
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+    return a;
+  }
+
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  // ── Global timer ──────────────────────────────────────────────
+  function startGlobalTimer(){
+    secLeft=TOTAL_SEC;
+    taskStart=performance.now();
+    updateGT();
+    globalInt=setInterval(()=>{
+      secLeft--;
+      updateGT();
+      if(secLeft<=0){clearInterval(globalInt);if(!ended)timeUp();}
+    },1000);
+  }
+
+  function updateGT(){
+    const m=Math.floor(secLeft/60);
+    const s=secLeft%60;
+    const txt=`${m}:${s.toString().padStart(2,'0')}`;
+    const pct=(secLeft/TOTAL_SEC)*100;
+    const urg=secLeft<=60;
+    ['gt1','gt2'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      el.textContent=txt;
+      el.classList.toggle('urgent',urg);
+    });
+    ['gb1','gb2'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      el.style.width=pct+'%';
+      el.classList.toggle('urgent',urg);
+    });
+  }
+
+  function timeUp(){
+    ended=true;
+    clearTO();clearCD();clearInterval(globalInt);
+    document.getElementById('timesup-count').textContent=correctCount;
+    showScreen('timesup-screen');
+  }
+
+  function clearTO(){clearTimeout(cycleTO);}
+  function clearCD(){clearInterval(selCDInt);selCDInt=null;}
+
+  // ── Start ─────────────────────────────────────────────────────
+  function startTask(){
+    ended=false;correctCount=0;cycleCount=0;recallIndex=0;
+    startGlobalTimer();
+    startCycle();
+  }
+
+  // ── Memorise cycle ────────────────────────────────────────────
+  function startCycle(){
+    if(ended)return;
+    cycleCount++;
+    wordIndex=0;
+    document.getElementById('cycle-count').textContent=`Cycle ${cycleCount}`;
+    buildDots();
+    showScreen('memorise-screen');
+    showFix(()=>showWord());
+  }
+
+  function buildDots(){
+    const row=document.getElementById('dot-row');
+    row.innerHTML='';
+    ORIGINAL.forEach((_,i)=>{
+      const d=document.createElement('div');
+      d.className='dot';
+      d.id=`dot-${i}`;
+      row.appendChild(d);
+    });
+  }
+
+  function showFix(cb){
+    document.getElementById('stage-content').innerHTML=`<div class="fixation">+</div>`;
+    document.getElementById('word-number').textContent='';
+    cycleTO=setTimeout(cb,500);
+  }
+
+  function showWord(){
+    if(ended)return;
+    if(wordIndex>=ORIGINAL.length){setTimeout(startRecall,400);return;}
+    const word=ORIGINAL[wordIndex];
+    document.getElementById('stage-content').innerHTML=`<div class="word-display">${word}</div>`;
+    document.getElementById('word-number').textContent=`${wordIndex+1} of ${ORIGINAL.length}`;
+    buildDots();
+    const dot=document.getElementById(`dot-${wordIndex}`);
+    if(dot)dot.className='dot current';
+    cycleTO=setTimeout(()=>{wordIndex++;showFix(()=>showWord());},1000);
+  }
+
+  // ── Recall ────────────────────────────────────────────────────
+  function startRecall(){
+    if(ended)return;
+    recallIndex=0;
+    buildSeqSlots();
+    buildGrid();
+    document.getElementById('asking-index').textContent=recallIndex+1;
+    showScreen('recall-screen');
+    startSelCD();
+  }
+
+  function buildSeqSlots(){
+    const wrap=document.getElementById('seq-slots');
+    wrap.innerHTML='';
+    ORIGINAL.forEach((_,i)=>{
+      const s=document.createElement('div');
+      s.id=`slot-${i}`;
+      if(i===recallIndex){s.className='seq-slot active';s.textContent=i+1;}
+      else{s.className='seq-slot';s.textContent=i+1;}
+      wrap.appendChild(s);
+    });
+  }
+
+  function buildGrid(){
+    const decoys=shuffle(TRUE_DECOYS).slice(0,10);
+    const opts=shuffle([...ORIGINAL,...decoys]);
+    const grid=document.getElementById('word-grid');
+    grid.innerHTML='';
+    opts.forEach(word=>{
+      const btn=document.createElement('div');
+      btn.className='word-option';
+      btn.textContent=word;
+      btn.addEventListener('click',()=>handleSel(word,btn));
+      grid.appendChild(btn);
+    });
+  }
+
+  function handleSel(word,btn){
+    if(ended)return;
+    clearCD();
+    const correct=ORIGINAL[recallIndex];
+
+    if(word===correct){
+      btn.classList.add('correct');
+      correctCount++;
+      const slot=document.getElementById(`slot-${recallIndex}`);
+      if(slot){slot.className='seq-slot filled';slot.textContent='✓';}
+      showFB('correct',`✓  "${word}" — word ${recallIndex+1} correct!`);
+      recallIndex++;
+
+      if(correctCount===ORIGINAL.length){
+        setTimeout(completeTask,700);
+      } else {
+        setTimeout(()=>{
+          const next=document.getElementById(`slot-${recallIndex}`);
+          if(next){next.className='seq-slot active';next.textContent=recallIndex+1;}
+          document.getElementById('asking-index').textContent=recallIndex+1;
+          clearFB();
+          startSelCD();
+        },700);
+      }
+    } else {
+      btn.classList.add('wrong');
+      const slot=document.getElementById(`slot-${recallIndex}`);
+      if(slot)slot.className='seq-slot wrong';
+      showFB('wrong',`✗  Wrong — all progress reset, restarting…`);
+      correctCount=0;
+      recallIndex=0;
+      setTimeout(()=>{if(!ended)startCycle();},1100);
+    }
+  }
+
+  // ── Per-selection countdown ───────────────────────────────────
+  function startSelCD(){
+    selCD=10;
+    resetCDRing();
+    const ring=document.getElementById('cd-ring');
+    const CIRC=88;
+    selCDInt=setInterval(()=>{
+      selCD=Math.max(0,selCD-0.1);
+      const pct=selCD/10;
+      ring.style.strokeDashoffset=CIRC*(1-pct);
+      ring.style.stroke=selCD<=3?'var(--red)':selCD<=6?'var(--gold)':'var(--gold)';
+      document.getElementById('cd-num').textContent=Math.ceil(selCD);
+      if(selCD<=0){clearCD();handleTimeout();}
+    },100);
+  }
+
+  function resetCDRing(){
+    const ring=document.getElementById('cd-ring');
+    if(!ring)return;
+    ring.style.strokeDashoffset=0;
+    ring.style.stroke='var(--gold)';
+    document.getElementById('cd-num').textContent='10';
+  }
+
+  function handleTimeout(){
+    if(ended)return;
+    document.querySelectorAll('.word-option:not(.correct)').forEach(b=>b.classList.add('timeout'));
+    showFB('timeout',`⏱  Too slow — all progress reset, restarting…`);
+    correctCount=0;
+    recallIndex=0;
+    setTimeout(()=>{if(!ended)startCycle();},1100);
+  }
+
+  function showFB(type,msg){
+    const bar=document.getElementById('feedback-bar');
+    bar.className=`feedback-bar ${type}`;bar.textContent=msg;
+  }
+  function clearFB(){
+    const bar=document.getElementById('feedback-bar');
+    bar.className='feedback-bar empty';bar.textContent='';
+  }
+
+  // ── Complete ──────────────────────────────────────────────────
+  function completeTask(){
+    if(ended)return;
+    ended=true;
+    clearTO();clearCD();clearInterval(globalInt);
+    const elapsed=Math.round((performance.now()-taskStart)/1000);
+    const m=Math.floor(elapsed/60),s=elapsed%60;
+    document.getElementById('final-cycles').textContent=cycleCount;
+    document.getElementById('final-time').innerHTML=`${m}m ${s}s`;
+    const wrap=document.getElementById('all-found-chips');
+    wrap.innerHTML='';
+    ORIGINAL.forEach(w=>{
+      const chip=document.createElement('div');
+      chip.className='found-chip';chip.textContent=w;wrap.appendChild(chip);
+    });
+    showScreen('complete-screen');
+  }
+</script>
+</body>
+</html>
